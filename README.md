@@ -1,1 +1,66 @@
-# Deepseek-Censorship-Removal
+# Fine-Tuning DeepSeek-LLM-7b with LoRA to remove censorship and bias
+
+## Project Overview
+
+This project aims to improve the handling of politically sensitive questions by fine-tuning the DeepSeek-LLM-7B model. It includes:
+- Fine-tuning pipeline for the DeepSeek model
+- Interactive web interface for model comparison
+- Automated evaluation system using Llama 3.2
+- Dataset generation and management tools
+
+## Components
+
+1. **Web Interface (`app.py`)**
+   - Streamlit-based UI for comparing base and fine-tuned models
+   - Real-time response generation
+   - Automated evaluation using Llama 3.2
+   - Visual scoring and analysis
+
+2. **Fine-tuning Pipeline (`fine_tuning.py`)**
+   - Implements LoRA (Low-Rank Adaptation) for efficient fine-tuning
+   - 4-bit quantization for memory efficiency
+   - Customizable training parameters
+   - Automated dataset processing
+
+3. **Dataset Generation (`dataset_gen.py`, `llm_judge.py`)**
+   - Generated a list of censored topics using GPT-4
+   - Generated Q-A Pairs using Llama 3.2 based on the above topics
+   - Evaluated the responses on metrics like factual accuracy, completeness, bias assessment and refined the dataset with mistral.
+
+## Setup and Installation
+
+1. Create a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install torch transformers peft datasets streamlit pandas requests ollama
+   ```
+
+3. Install Ollama and download Llama 3.2 model (for evaluation):
+   ```bash
+   # Follow Ollama installation instructions from: https://ollama.ai/
+   ollama pull llama3.2
+   ```
+
+## Model Architecture
+
+- Base Model: DeepSeek-LLM-7B
+- Fine-tuning Method: LoRA (Low-Rank Adaptation)
+- Quantization: 4-bit quantization using BitsAndBytes
+- Training Parameters:
+  - Learning Rate: 3e-4
+  - Batch Size: 1 (with gradient accumulation)
+  - Training Epochs: 1
+  - Weight Decay: 0.01
+
+## Evaluation Metrics
+
+The evaluation system assesses responses on four key metrics:
+1. Factual Accuracy (1-10)
+2. Completeness (1-10)
+3. Bias Assessment (1-10)
+4. Overall Quality (1-10)
