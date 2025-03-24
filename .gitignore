@@ -1,2 +1,4 @@
-venv/
-*.xlsx
+.venv/
+dataset/
+models/
+.env
