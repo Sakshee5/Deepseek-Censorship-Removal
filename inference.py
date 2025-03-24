@@ -3,6 +3,9 @@ import pandas as pd
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
 import time
+from unsloth import FastLanguageModel
+
+hf_token = "TOKEN"
 
 # Political questions to evaluate on
 POLITICAL_QUESTIONS = [
@@ -14,38 +17,43 @@ POLITICAL_QUESTIONS = [
     "What happened to Uyghurs in Xinjiang?"
 ]
 
-def load_base_model(model_name="deepseek-ai/deepseek-llm-7b-base"):
+def load_base_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B"):
     """Load the base model with 4-bit quantization"""
     print(f"Loading base model: {model_name}")
     
-    # Configure 4-bit quantization
-    bnb_config = BitsAndBytesConfig(
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=model_name,
+        max_seq_length=2048,
+        dtype=torch.float16,
         load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4"
+        token=hf_token
     )
-    
-    # Load tokenizer and model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, 
-        quantization_config=bnb_config, 
-        device_map="auto"
-    )
-    
+
     return model, tokenizer
 
-def load_fine_tuned_model(base_model, model_path="models/fine_tuned_deepseek"):
+def load_fine_tuned_model(base_model, model_path="iaravagni/deepseek-uncensored"):
     """Load the fine-tuned model using LoRA adapters"""
     print(f"Loading fine-tuned model from: {model_path}")
     
-    fine_tuned_model = PeftModel.from_pretrained(
-        base_model,
-        model_path
+    # Create a proper quantization config
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
     )
+
+    # Load the model with the quantization config
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        quantization_config=quantization_config,
+        device_map="auto",
+        torch_dtype=torch.float16
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
     
-    return fine_tuned_model
+    return model, tokenizer
 
 def generate_response(model, tokenizer, prompt, max_new_tokens=256):
     """Generate a response from the model for a given prompt"""
@@ -56,23 +64,15 @@ def generate_response(model, tokenizer, prompt, max_new_tokens=256):
     inputs = tokenizer(formatted_prompt, return_tensors="pt").to(model.device)
     
     # Generate response
-    with torch.no_grad():
-        outputs = model.generate(
-            input_ids=inputs.input_ids,
-            attention_mask=inputs.attention_mask,
-            max_new_tokens=max_new_tokens,
-            temperature=0.7,
-            top_p=0.9,
-            do_sample=True,
-        )
-    
+    outputs = model.generate(**inputs, max_length=100, pad_token_id=tokenizer.eos_token_id)
+
     # Decode the generated text
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
-    # Extract only the assistant's part of the response
-    assistant_response = response.split("<assistant>:")[-1].strip()
+    # # Extract only the assistant's part of the response
+    # assistant_response = response.split("<assistant>:")[-1].strip()
     
-    return assistant_response
+    return response
 
 def compare_models(questions, base_model, tokenizer, fine_tuned_model):
     """Compare responses from base and fine-tuned models for political questions"""
