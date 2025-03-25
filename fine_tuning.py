@@ -15,10 +15,10 @@ from unsloth import FastLanguageModel
 from unsloth import is_bfloat16_supported
 from trl import SFTTrainer
 from huggingface_hub import HfApi
+import os
 
 
-
-hf_token = "TOKEN"
+hf_token = os.getenv("HF_TOKEN")
 
 # Create models directory if it doesn't exist
 os.makedirs("models", exist_ok=True)
@@ -50,9 +50,9 @@ def prepare_dataset(excel_path, tokenizer):
     def format_instruction(example):
         prompt = """You are an expert in Chinese history. Answer the following question accurately and concisely.
 
-        Question: {}
+Question: {}
 
-        Answer:"""
+Answer:"""
 
         return {
             "text": prompt.format(example['Question']) + " " + example['Answer'] + EOS_TOKEN
@@ -134,12 +134,6 @@ def train_model(model, tokenized_dataset, tokenizer, output_dir="models/fine_tun
         hub_model_id=f"iaravagni/deepseek-uncensored",
         report_to="wandb",
     )
-    
-    # # Data collator for language modeling
-    # data_collator = DataCollatorForLanguageModeling(
-    #     tokenizer=tokenizer,
-    #     mlm=False  # Not using masked language modeling
-    # )
     
     # Initialize trainer
     trainer = SFTTrainer(

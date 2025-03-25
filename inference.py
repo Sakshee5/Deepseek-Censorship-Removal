@@ -1,11 +1,12 @@
+from unsloth import FastLanguageModel
 import torch
 import pandas as pd
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
 import time
-from unsloth import FastLanguageModel
+import os
 
-hf_token = "TOKEN"
+hf_token = os.getenv("HF_TOKEN")
 
 # Political questions to evaluate on
 POLITICAL_QUESTIONS = [
@@ -18,59 +19,71 @@ POLITICAL_QUESTIONS = [
 ]
 
 def load_base_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B"):
-    """Load the base model with 4-bit quantization"""
+    """Load the base model with 4-bit quantization and CPU offloading"""
     print(f"Loading base model: {model_name}")
     
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_name,
-        max_seq_length=2048,
-        dtype=torch.float16,
-        load_in_4bit=True,
-        token=hf_token
-    )
-
-    return model, tokenizer
-
-def load_fine_tuned_model(base_model, model_path="iaravagni/deepseek-uncensored"):
-    """Load the fine-tuned model using LoRA adapters"""
-    print(f"Loading fine-tuned model from: {model_path}")
-    
-    # Create a proper quantization config
+    # Configure quantization with CPU offloading
     quantization_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_compute_dtype=torch.float16,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
+        llm_int8_enable_fp32_cpu_offload=True
     )
 
-    # Load the model with the quantization config
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        quantization_config=quantization_config,
-        device_map="auto",
-        torch_dtype=torch.float16
-    )
+    try:
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=model_name,
+            dtype=torch.float16,
+            load_in_4bit=True,
+            token=hf_token,
+            device_map="auto",
+            quantization_config=quantization_config
+        )
+        print("Base model loaded successfully!")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Error loading base model: {str(e)}")
+        print("Try using a smaller model or freeing up GPU memory")
+        raise
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+def load_fine_tuned_model(model_path="iaravagni/deepseek-uncensored"):
+    """Load the fine-tuned model using LoRA adapters with CPU offloading"""
+    print(f"Loading fine-tuned model from: {model_path}")
     
-    return model, tokenizer
+    # Create a proper quantization config with CPU offloading
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        llm_int8_enable_fp32_cpu_offload=True
+    )
 
-def generate_response(model, tokenizer, prompt, max_new_tokens=256):
+    try:
+        # Load the model with the quantization config
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            quantization_config=quantization_config,
+            device_map="auto",
+            torch_dtype=torch.float16
+        )
+
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        print("Fine-tuned model loaded successfully!")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Error loading fine-tuned model: {str(e)}")
+        print("Try using a smaller model or freeing up GPU memory")
+        raise
+
+def generate_response(model, tokenizer, prompt):
     """Generate a response from the model for a given prompt"""
-    # Format the prompt for DeepSeek's expected format
-    formatted_prompt = f"<human>: {prompt}\n<assistant>:"
-    
-    # Tokenize the input
-    inputs = tokenizer(formatted_prompt, return_tensors="pt").to(model.device)
-    
-    # Generate response
-    outputs = model.generate(**inputs, max_length=100, pad_token_id=tokenizer.eos_token_id)
 
-    # Decode the generated text
+    formatted_prompt = f"<human>: {prompt}\n<assistant>:"
+    inputs = tokenizer(formatted_prompt, return_tensors="pt").to(model.device)
+    outputs = model.generate(**inputs, max_length=200, pad_token_id=tokenizer.eos_token_id)
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    # # Extract only the assistant's part of the response
-    # assistant_response = response.split("<assistant>:")[-1].strip()
     
     return response
 
@@ -119,10 +132,10 @@ def main():
     base_model, tokenizer = load_base_model()
     
     # Load fine-tuned model
-    fine_tuned_model = load_fine_tuned_model(base_model)
+    fine_tuned_model = load_fine_tuned_model()
     
     # Compare models on political questions
-    results = compare_models(
+    _ = compare_models(
         POLITICAL_QUESTIONS,
         base_model,
         tokenizer,

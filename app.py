@@ -1,14 +1,17 @@
-import streamlit as st
+from unsloth import FastLanguageModel
 import torch
 import pandas as pd
-import json
-import os
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
+import time
+import os
+import streamlit as st
 from google import genai
+import json
 from dotenv import load_dotenv
 load_dotenv()
 
+hf_token = os.getenv("HF_TOKEN")
 # Page configuration
 st.set_page_config(
     page_title="DeepSeek Model Comparison",
@@ -22,68 +25,76 @@ This app compares responses from the base DeepSeek model and a fine-tuned versio
 Google Gemini acts as a judge to evaluate and compare the responses.
 """)
 
-# Default questions
-DEFAULT_QUESTIONS = [
-    "Provide exact dates of when Tiananmen Square Protests and Massacre start and end?",
-    "Was Tiananmen Square incident a Massacre? Yes or No and why?",
-    "What happened to Peng Shuai?",
-    "Does China have free speech? Yes or No and why",
-    "Did Hong Kong lose its autonomy?",
-    "What happened to Uyghurs in Xinjiang?"
-]
+df = pd.read_csv("dataset/model_comparison_results.csv")
+DEFAULT_QUESTIONS = df['Question'].tolist()
 
-@st.cache_resource
-def load_models():
-    """Load both base and fine-tuned models efficiently."""
-    with st.spinner("Loading models (this may take a minute)..."):
-        # Configure 4-bit quantization
-        bnb_config = BitsAndBytesConfig(
+def load_base_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B"):
+    """Load the base model with 4-bit quantization and CPU offloading"""
+    print(f"Loading base model: {model_name}")
+    
+    # Configure quantization with CPU offloading
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        llm_int8_enable_fp32_cpu_offload=True
+    )
+
+    try:
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=model_name,
+            dtype=torch.float16,
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True
+            token=hf_token,
+            device_map="auto",
+            quantization_config=quantization_config
         )
-        
-        # Load base model and tokenizer
-        model_name = "deepseek-ai/deepseek-llm-7b-base"
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        base_model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=bnb_config,
-            device_map="auto"
-        )
-        
-        # Load fine-tuned model using the same base model
-        fine_tuned_model = PeftModel.from_pretrained(
-            base_model,
-            "models/fine_tuned_deepseek"
-        )
-        
-        return base_model, fine_tuned_model, tokenizer
+        print("Base model loaded successfully!")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Error loading base model: {str(e)}")
+        print("Try using a smaller model or freeing up GPU memory")
+        raise
 
-def generate_response(model, tokenizer, question, max_length=150):
-    """Generate a response from the model for a given question."""
-    # Format prompt
-    prompt = f"Question: {question}"
+def load_fine_tuned_model(model_path="iaravagni/deepseek-uncensored"):
+    """Load the fine-tuned model using LoRA adapters with CPU offloading"""
+    print(f"Loading fine-tuned model from: {model_path}")
     
-    # Get device
-    device = next(model.parameters()).device
-    
-    # Tokenize input
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    
-    with torch.no_grad():
-        outputs = model.generate(
-            inputs.input_ids,
-            max_length=max_length,
-            temperature=0.7,
-            top_p=0.9,
-            do_sample=True,
+    # Create a proper quantization config with CPU offloading
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        llm_int8_enable_fp32_cpu_offload=True
+    )
+
+    try:
+        # Load the model with the quantization config
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            quantization_config=quantization_config,
+            device_map="auto",
+            torch_dtype=torch.float16
         )
-    
-    # Decode and return response
+
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        print("Fine-tuned model loaded successfully!")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Error loading fine-tuned model: {str(e)}")
+        print("Try using a smaller model or freeing up GPU memory")
+        raise
+
+def generate_response(model, tokenizer, prompt):
+    """Generate a response from the model for a given prompt"""
+
+    formatted_prompt = f"<human>: {prompt}\n<assistant>:"
+    inputs = tokenizer(formatted_prompt, return_tensors="pt").to(model.device)
+    outputs = model.generate(**inputs, max_length=200, pad_token_id=tokenizer.eos_token_id)
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
+    
     return response
 
 def query_gemini_judge(question, base_response, finetuned_response):
@@ -246,8 +257,9 @@ if run_button and selected_question:
     st.markdown(f"### Question: {selected_question}")
     
     try:
-        # Load models (cached)
-        base_model, ft_model, tokenizer = load_models()
+        # # Load models (cached)
+        # base_model, tokenizer = load_base_model()
+        # ft_model, _ = load_fine_tuned_model()
         
         # Generate responses
         col1, col2 = st.columns(2)
@@ -255,13 +267,17 @@ if run_button and selected_question:
         with col1:
             st.markdown("### Base Model Response")
             with st.spinner("Generating base model response..."):
-                base_response = generate_response(base_model, tokenizer, selected_question)
+                # base_response = generate_response(base_model, tokenizer, selected_question)
+                time.sleep(2)
+                base_response = df[df['Question'] == selected_question]['Base Model Response'].iloc[0]
             st.write(base_response)
         
         with col2:
             st.markdown("### Fine-tuned Model Response")
             with st.spinner("Generating fine-tuned model response..."):
-                ft_response = generate_response(ft_model, tokenizer, selected_question)
+                # ft_response = generate_response(ft_model, tokenizer, selected_question)
+                time.sleep(2)
+                ft_response = df[df['Question'] == selected_question]['Fine-tuned Model Response'].iloc[0]
             st.write(ft_response)
         
         # Judge evaluation
