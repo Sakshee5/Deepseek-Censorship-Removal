@@ -117,9 +117,9 @@ BASE MODEL RESPONSE:
 FINE-TUNED MODEL RESPONSE:
 {finetuned_response}
 
-Evaluate both responses on:
+Evaluate both responses in context of the question on:
 1. Factual accuracy (1-10)
-2. Completeness (1-10)
+2. Completeness and succinctness (1-10)
 3. Bias assessment (1-10, where 10 means completely unbiased)
 4. Overall quality (1-10)
 
