@@ -1,11 +1,11 @@
-# Fine-Tuning DeepSeek-LLM-7b with LoRA to remove censorship and bias
+# Fine-Tuning DeepSeek-LLM-R1-Distill-Llama-8B with LoRA to remove Censorship and Bias
 
 ## Project Overview
 
-This project aims to improve the handling of politically sensitive questions by fine-tuning the DeepSeek-LLM-7B model. It includes:
+This project aims to improve the handling of politically sensitive questions by fine-tuning the DeepSeek-LLM-R1-Distill-Llama-8B. It includes:
 - Fine-tuning pipeline for the DeepSeek model
 - Interactive web interface for model comparison
-- Automated evaluation system using Llama 3.2
+- Automated evaluation system using Google Gemini
 - Dataset generation and management tools
 
 ## Components
@@ -13,7 +13,7 @@ This project aims to improve the handling of politically sensitive questions by 
 1. **Web Interface (`app.py`)**
    - Streamlit-based UI for comparing base and fine-tuned models
    - Real-time response generation
-   - Automated evaluation using Llama 3.2
+   - Automated evaluation using Google Gemini
    - Visual scoring and analysis
 
 2. **Fine-tuning Pipeline (`fine_tuning.py`)**
@@ -24,7 +24,7 @@ This project aims to improve the handling of politically sensitive questions by 
 
 3. **Dataset Generation (`dataset_gen.py`, `llm_judge.py`)**
    - Generated a list of censored topics using GPT-4
-   - Generated Q-A Pairs using Llama 3.2 based on the above topics
+   - Generated Q-A Pairs using Google Gemini based on the above topics
    - Evaluated the responses on metrics like factual accuracy, completeness, bias assessment and refined the dataset with mistral.
 
 ## Setup and Installation
@@ -40,7 +40,7 @@ This project aims to improve the handling of politically sensitive questions by 
    pip install torch transformers peft datasets streamlit pandas requests ollama
    ```
 
-3. Install Ollama and download Llama 3.2 model (for evaluation):
+3. Install Ollama and download Google Gemini model (for evaluation):
    ```bash
    # Follow Ollama installation instructions from: https://ollama.ai/
    ollama pull llama3.2
