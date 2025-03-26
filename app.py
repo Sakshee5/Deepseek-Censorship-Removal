@@ -28,7 +28,7 @@ Google Gemini acts as a judge to evaluate and compare the responses.
 df = pd.read_csv("dataset/model_comparison_results.csv", encoding='latin-1')
 DEFAULT_QUESTIONS = df['Question'].tolist()
 
-def load_base_model(model_name="https://huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit"):
+def load_base_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit"):
     """Load the base model with 4-bit quantization and CPU offloading"""
     print(f"Loading base model: {model_name}")
     
