@@ -1,4 +1,4 @@
-# Fine-Tuning DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit with LoRA to remove Censorship and Bias
+# Fine-Tuning DeepSeek-R1-Distill-Llama-8B with LoRA to remove Censorship and Bias
 
 ## Project Overview
 
@@ -40,15 +40,13 @@ This project aims to improve the handling of politically sensitive questions by 
    pip install torch transformers peft datasets streamlit pandas requests ollama
    ```
 
-3. Install Ollama and download Google Gemini model (for evaluation):
-   ```bash
-   # Follow Ollama installation instructions from: https://ollama.ai/
-   ollama pull llama3.2
-   ```
+3. Set up environment variables
+- HF_TOKEN for Hugging Face
+- GEMINI_API_KEY for Google Gemini Judge 
 
 ## Model Architecture
 
-- Base Model: DeepSeek-LLM-7B
+- Base Model: DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit
 - Fine-tuning Method: LoRA (Low-Rank Adaptation)
 - Quantization: 4-bit quantization using BitsAndBytes
 - Training Parameters:

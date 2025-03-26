@@ -1,8 +1,8 @@
-from unsloth import FastLanguageModel
-import torch
+# from unsloth import FastLanguageModel
+# import torch
 import pandas as pd
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from peft import PeftModel
+# from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+# from peft import PeftModel
 import time
 import os
 import streamlit as st
@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("DeepSeek LLM Political Question Evaluation")
+st.title("DeepSeek-R1-8B Political Question Evaluation")
 st.markdown("""
 This app compares responses from the base DeepSeek model and a fine-tuned version on politically sensitive questions.
 Google Gemini acts as a judge to evaluate and compare the responses.
@@ -247,7 +247,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### About")
     st.markdown("""
-- DeepSeek Base Model (7B)
+- DeepSeek Base Model (Distill-Llama-8B)
 - Fine-tuned DeepSeek Model
 - Google Gemini (Judge)""")
 
