@@ -1,8 +1,8 @@
-# Fine-Tuning DeepSeek-LLM-R1-Distill-Llama-8B with LoRA to remove Censorship and Bias
+# Fine-Tuning DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit with LoRA to remove Censorship and Bias
 
 ## Project Overview
 
-This project aims to improve the handling of politically sensitive questions by fine-tuning the DeepSeek-LLM-R1-Distill-Llama-8B. It includes:
+This project aims to improve the handling of politically sensitive questions by fine-tuning the DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit. It includes:
 - Fine-tuning pipeline for the DeepSeek model
 - Interactive web interface for model comparison
 - Automated evaluation system using Google Gemini

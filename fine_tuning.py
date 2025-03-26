@@ -14,7 +14,7 @@ hf_token = os.getenv("HF_TOKEN")
 os.makedirs("models", exist_ok=True)
 
 # Load DeepSeek LLM with 4-bit quantization
-def load_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B"):
+def load_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit"):
     print(f"Loading model: {model_name}")
     
     model, tokenizer = FastLanguageModel.from_pretrained(
