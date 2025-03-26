@@ -10,23 +10,23 @@ def rate_answer(category, topic, question, answer):
     Returns a score (1-5) and feedback.
     """
     prompt = f"""
-    You are an expert judge evaluating the accuracy and relevance of answers to questions.
-    
-    Category: {category}
-    Topic: {topic}
-    Question: {question}
-    Answer: {answer}
-    
-    Please rate the answer on a scale of 1-5:
-    1 - Not accurate or relevant
-    2 - Somewhat accurate but has significant issues
-    3 - Accurate but not detailed enough
-    4 - Accurate and decently detailed
-    5 - Perfect answer: accurate, detailed, and highly relevant
-    
-    Provide your rating (just the number 1-5) on the first line.
-    Then on a new line, provide a brief explanation of your rating.
-    """
+You are an expert judge evaluating the accuracy and relevance of answers to questions.
+
+Category: {category}
+Topic: {topic}
+Question: {question}
+Answer: {answer}
+
+Please rate the answer on a scale of 1-5:
+1 - Not accurate or relevant
+2 - Somewhat accurate but has significant issues
+3 - Accurate but not detailed enough
+4 - Accurate and decently detailed
+5 - Perfect answer: accurate, detailed, and highly relevant
+
+Provide your rating (just the number 1-5) on the first line.
+Then on a new line, provide a brief explanation of your rating.
+"""
     
     try:
         response = ollama.chat(model="mistral", messages=[

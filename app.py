@@ -25,10 +25,10 @@ This app compares responses from the base DeepSeek model and a fine-tuned versio
 Google Gemini acts as a judge to evaluate and compare the responses.
 """)
 
-df = pd.read_csv("dataset/model_comparison_results.csv")
+df = pd.read_csv("dataset/model_comparison_results.csv", encoding='latin-1')
 DEFAULT_QUESTIONS = df['Question'].tolist()
 
-def load_base_model(model_name="unsloth/DeepSeek-R1-Distill-Llama-8B"):
+def load_base_model(model_name="https://huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit"):
     """Load the base model with 4-bit quantization and CPU offloading"""
     print(f"Loading base model: {model_name}")
     
@@ -269,7 +269,10 @@ if run_button and selected_question:
             with st.spinner("Generating base model response..."):
                 # base_response = generate_response(base_model, tokenizer, selected_question)
                 time.sleep(2)
+                base_reasoning = df[df['Question'] == selected_question]['Base Model Reasoning'].iloc[0]
                 base_response = df[df['Question'] == selected_question]['Base Model Response'].iloc[0]
+            with st.expander("Base Model Reasoning"):
+                st.write(base_reasoning)
             st.write(base_response)
         
         with col2:
@@ -277,7 +280,10 @@ if run_button and selected_question:
             with st.spinner("Generating fine-tuned model response..."):
                 # ft_response = generate_response(ft_model, tokenizer, selected_question)
                 time.sleep(2)
+                ft_reasoning = df[df['Question'] == selected_question]['Fine-tuned Model Reasoning'].iloc[0]
                 ft_response = df[df['Question'] == selected_question]['Fine-tuned Model Response'].iloc[0]
+            with st.expander("Fine-tuned Model Reasoning"):
+                st.write(ft_reasoning)
             st.write(ft_response)
         
         # Judge evaluation

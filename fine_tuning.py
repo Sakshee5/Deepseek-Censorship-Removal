@@ -6,8 +6,7 @@ from datasets import Dataset
 from unsloth import FastLanguageModel
 from unsloth import is_bfloat16_supported
 from trl import SFTTrainer
-import os
-
+import wandb
 
 hf_token = os.getenv("HF_TOKEN")
 
@@ -51,9 +50,6 @@ Answer:"""
     
     dataset = dataset.map(format_instruction)
     
-    # # Split into train and validation sets (90% train, 10% validation)
-    # dataset = dataset.train_test_split(test_size=0.1, seed=42)
-    
     return dataset
 
 # Tokenize the dataset
@@ -67,7 +63,6 @@ def tokenize_dataset(dataset, tokenizer, max_length=512):
             padding="max_length",
             max_length=max_length
         )
-        print(inputs)
         inputs["labels"] = inputs["input_ids"].copy()  # Use input_ids as labels for causal LM
         return inputs
 
@@ -75,7 +70,7 @@ def tokenize_dataset(dataset, tokenizer, max_length=512):
     
     return tokenized_datasets
 
-# 4. Configure LoRA for efficient fine-tuning
+# Configure LoRA for efficient fine-tuning
 def configure_lora(model):
     print("Configuring LoRA...")
     
@@ -94,7 +89,7 @@ def configure_lora(model):
         lora_alpha=16,
         lora_dropout=0,
         bias="none",
-        use_gradient_checkpointing="unsloth",  # True or "unsloth" for very long context
+        use_gradient_checkpointing="unsloth",
         random_state=1000,
         use_rslora=False,
         loftq_config=None,
@@ -140,28 +135,65 @@ def train_model(model, tokenized_dataset, tokenizer, output_dir="models/fine_tun
     print("Starting fine-tuning...")
     trainer.train()
     
-    # Save the fine-tuned model
+    # Save the fine-tuned model (LoRA weights)
     print(f"Saving fine-tuned model to {output_dir}")
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
 
-    # api = HfApi()
-    repo_id = f"iaravagni/deepseek-uncensored" 
-
-    model.push_to_hub(repo_id)
-    tokenizer.push_to_hub(repo_id)
-    
     return trainer
 
+# Merge LoRA weights with base model and save
+def merge_and_save_model(model, tokenizer, output_dir="models/merged_deepseek"):
+    print("Merging LoRA weights with base model...")
+    
+    # Merge the LoRA weights with the base model
+    model = model.merge_and_unload()
+    
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Save the merged model
+    print(f"Saving merged model to {output_dir}")
+    model.save_pretrained(output_dir)
+    tokenizer.save_pretrained(output_dir)
+    
+    # Optionally push to Hugging Face Hub
+    try:
+        repo_id = f"iaravagni/deepseek-uncensored-merged"
+        model.push_to_hub(repo_id)
+        tokenizer.push_to_hub(repo_id)
+        print(f"Merged model pushed to Hugging Face Hub: {repo_id}")
+    except Exception as e:
+        print(f"Error pushing to Hub: {e}")
+    
+    return model
 
 def main(excel_path):
+    # Initialize wandb
+    wandb.init(project="deepseek-fine-tuning", config={
+        "model": "DeepSeek-R1-Distill-Llama-8B",
+        "dataset": excel_path,
+        "method": "LoRA"
+    })
+
+    # Load base model and tokenizer
     model, tokenizer = load_model()
-    dataset = prepare_dataset(excel_path,tokenizer)
+    
+    # Prepare and tokenize dataset
+    dataset = prepare_dataset(excel_path, tokenizer)
     tokenized_dataset = tokenize_dataset(dataset, tokenizer)
+    
+    # Configure LoRA and train
     model_with_lora = configure_lora(model)
     trainer = train_model(model_with_lora, tokenized_dataset, tokenizer)
     
-    print("Fine-tuning completed successfully!")
+    # Merge and save full model
+    merged_model = merge_and_save_model(model_with_lora, tokenizer)
+    
+    # Finish wandb run
+    wandb.finish()
+    
+    print("Fine-tuning and model merging completed successfully!")
     
 if __name__ == "__main__":
     excel_path = "dataset/censored_questions_and_answers.xlsx"
